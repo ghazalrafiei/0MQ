@@ -1,2 +1,1 @@
-# Jikjik
-Sending a message from router as server to 2 dealers as clients via ZMQ router/dealer messaging pattern.
+Sending message in Json format from one client to another using ZeroMQ dealer/router messaging pattern.
