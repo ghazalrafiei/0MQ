@@ -105,7 +105,5 @@ int main(){
     with_user.join();
     
     
-    
-    
-
+    return 0;
 }
