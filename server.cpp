@@ -84,7 +84,7 @@ int main(){
     }
 
 /// format:  {method = s_m, params = {message , to , from }
-/// format     {method = login, params = {myname}
+/// format   {method = login, params = {myname}
 
 
     return 0;
