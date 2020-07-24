@@ -23,7 +23,7 @@ std::vector<std::string> bridge;
 std::mutex mute;
 
 /// format:  {method = s_m, params = {message , to , from }
-/// format     {method = login, params = {myname}
+/// format   {method = login, params = {myname}
 
 void client_tasks(std::string client_name )
 {
