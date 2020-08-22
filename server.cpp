@@ -3,7 +3,7 @@
 #include <zmq.hpp>
 #include <ctime>
 #include <cassert>
-#include <cstdlib>        // random()  RAND_MAX
+#include <cstdlib> // random()  RAND_MAX
 #include <cstdio>
 #include <cstdarg>
 #include <csignal>
@@ -68,16 +68,16 @@ void handle_send(zmq::socket_t &broker, json params)
 
 int main()
 {
-
     zmq::context_t context(1);
     zmq::socket_t broker(context, ZMQ_ROUTER);
 
-int main(){
-    
+    broker.bind("tcp://*:5672");
+    std::cout << "Connected" << std::endl;
 
     while (1)
     {
         std::string identity = s_recv(broker);
+        std::cout<<identity<<std::endl;
         s_recv(broker);
         std::string comming_message = s_recv(broker);
 
