@@ -3,6 +3,7 @@ import zmq
 import zmq.asyncio
 import json
 
+#add database
 #if length >>>
 #see onlines
 
@@ -30,7 +31,6 @@ def handle_send(params):
 async def async_process(message_queue):
 
     message = await message_queue.get()
-    # print(message)
     message_ = (message.strip('][').split(', ')[2])[2:-1]
     user_id = (message.strip('][').split(', ')[0])[2:-1]
     json_message = json.loads(message_)
