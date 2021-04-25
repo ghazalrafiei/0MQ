@@ -14,7 +14,7 @@
 #include <vector>
 #include <iomanip>
 #include <sstream>
-#include <unordered_map>
+#include <unordered_map>    
 
 #include "zhelpers.hpp"
 #include "json.hpp"
@@ -79,9 +79,10 @@ int main()
         std::string identity = s_recv(broker);
         std::cout<<identity<<std::endl;
         s_recv(broker);
-        std::string comming_message = s_recv(broker);
+        std::string coming_message = s_recv(broker);
 
-        json json_message = json::parse(comming_message);
+        json json_message = json::parse(coming_message);
+        std::cout<<coming_message;
 
         if (json_message["method"] == "send_message")
         {
