@@ -5,18 +5,22 @@ import json
 
 #if length >>>
 #see onlines
+#add database
 
 ctx = zmq.asyncio.Context()
 
 id_to_name = {}
 
 def name_to_id(name):
+
     for i in id_to_name.keys():
         if id_to_name[i] == name:
             return i
+    
     return None
 
 def handle_send(params):
+
     receiver_name = params['to']
     receiver_id = name_to_id(receiver_name)
     
@@ -30,13 +34,13 @@ def handle_send(params):
 async def async_process(message_queue):
 
     message = await message_queue.get()
-    # print(message)
     message_ = (message.strip('][').split(', ')[2])[2:-1]
     user_id = (message.strip('][').split(', ')[0])[2:-1]
     json_message = json.loads(message_)
 
     
     if json_message['method'] == 'send_message':
+
         params = json_message['params']
         ready_to_be_sent , receiver_id= handle_send(params)
         return ready_to_be_sent, receiver_id
