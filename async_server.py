@@ -3,13 +3,6 @@ import zmq
 import zmq.asyncio
 import json
 
-<<<<<<< HEAD
-#add database
-#if length >>>
-#see onlines
-=======
->>>>>>> CasDB
-
 ctx = zmq.asyncio.Context()
 
 id_to_name = {}
