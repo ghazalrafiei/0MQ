@@ -3,9 +3,12 @@ import zmq
 import zmq.asyncio
 import json
 
-#if length >>>
+#TODO:
+#if length was large
 #see onlines
 #add database
+#divide reveice instead of recv multipart
+#if reciever does not exist
 
 ctx = zmq.asyncio.Context()
 
@@ -19,7 +22,7 @@ def name_to_id(name):
     
     return None
 
-def handle_send(params):
+def create_sending_message(params):
 
     receiver_name = params['to']
     receiver_id = name_to_id(receiver_name)
@@ -30,19 +33,18 @@ def handle_send(params):
 
     return json.dumps(processed_msg),receiver_id
 
-
-async def async_process(message_queue):
+async def process_recieved_message(message_queue):
 
     message = await message_queue.get()
     message_ = (message.strip('][').split(', ')[2])[2:-1]
     user_id = (message.strip('][').split(', ')[0])[2:-1]
     json_message = json.loads(message_)
 
-    
     if json_message['method'] == 'send_message':
 
         params = json_message['params']
-        ready_to_be_sent , receiver_id= handle_send(params)
+        ready_to_be_sent , receiver_id = create_sending_message(params)
+
         return ready_to_be_sent, receiver_id
 
     elif json_message['method'] == 'login':
@@ -56,7 +58,7 @@ async def async_process(message_queue):
 async def main():
     
     sock = ctx.socket(zmq.ROUTER)
-    sock.bind('tcp://*:5672')
+    sock.bind('tcp://{}:{}'.format('*',5672))
     print('Connected')
 
     message_queue = asyncio.Queue()
@@ -65,11 +67,12 @@ async def main():
         received_msg = await sock.recv_multipart()
         message_queue.put_nowait(received_msg.__str__())
         
+        message, be_send = await process_recieved_message(message_queue)
 
-        message, be_send = await async_process(message_queue)
         if be_send:
             
             await sock.send_multipart([be_send.encode(),b"",message.encode()])
+
         else:
             
             print(f'{message} connected.')
