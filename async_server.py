@@ -3,12 +3,6 @@ import zmq
 import zmq.asyncio
 import json
 
-#TODO:
-#if length was large
-#see onlines
-#add database
-#divide reveice instead of recv multipart
-#if reciever does not exist
 
 ctx = zmq.asyncio.Context()
 
