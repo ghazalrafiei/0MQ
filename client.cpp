@@ -107,7 +107,7 @@ void run(std::string my_name)
         json_message["method"] = "send_message";
 
         json params;
-        params["from"] = my_name;
+        // params["from"] = my_name;
         params["to"] = rcvr_name;
         params["message"] = msg;
 

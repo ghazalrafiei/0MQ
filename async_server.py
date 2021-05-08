@@ -15,14 +15,22 @@ def name_to_id(name):
     
     return None
 
-def create_sending_message(params):
+def create_sending_message(user_id, params, method = 'recieve_message', result = ''):
 
-    receiver_name = params['to']
-    receiver_id = name_to_id(receiver_name)
-    
     processed_msg = {}
-    processed_msg['params'] = params
-    processed_msg['method'] = 'receive_message'
+    processed_msg['method'] = method
+
+    params['from'] = id_to_name[user_id]
+
+    if method == 'result':
+        processed_msg['method'] = method
+        processed_msg['params'] = {'result' : result}
+        receiver_id = params['from']
+    
+    else:
+        receiver_name = params['to']
+        receiver_id = name_to_id(receiver_name)
+        processed_msg['params'] = params
 
     return json.dumps(processed_msg),receiver_id
 
@@ -33,18 +41,32 @@ async def process_recieved_message(message_queue):
     user_id = (message.strip('][').split(', ')[0])[2:-1]
     json_message = json.loads(message_)
 
-    if json_message['method'] == 'send_message':
+    method = json['method']
+
+    if method == 'send_message':
 
         params = json_message['params']
-        ready_to_be_sent , receiver_id = create_sending_message(params)
+        return create_sending_message(user_id, params)
 
-        return ready_to_be_sent, receiver_id
+    elif method == 'signup':
 
-    elif json_message['method'] == 'login':
+        succeed_db = False # get from db if json_message['params']['username']
+        succeed = 'succeed' if succeed_db else 'unsuccessful'
+        if succeed_db :
+            global id_to_name
+            id_to_name[user_id] = json_message['params']['username']
 
-        name = json_message['params']['name']
-        global id_to_name
-        id_to_name[user_id] = name
+        return create_sending_message(user_id, params,'result',succeed)
+
+
+
+    elif method == 'login':
+
+        succeed_db = False # see if user and password exists and match
+        succeed = 'succeed' if succeed_db else 'unsuccessful'
+        
+        return create_sending_message(user_id, params,'result',succeed)
+        
 
         return name, None
 
