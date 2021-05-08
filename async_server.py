@@ -6,6 +6,7 @@ import json
 ctx = zmq.asyncio.Context()
 
 id_to_name = {}
+online_users_id = set()
 
 def name_to_id(name):
 
@@ -46,6 +47,7 @@ async def process_recieved_message(message_queue):
     if method == 'send_message':
 
         params = json_message['params']
+        #see if online?!
         return create_sending_message(user_id, params)
 
     elif method == 'signup':
@@ -55,6 +57,7 @@ async def process_recieved_message(message_queue):
         if succeed_db :
             global id_to_name
             id_to_name[user_id] = json_message['params']['username']
+            online_users_id.add(user_id)
 
         return create_sending_message(user_id, params,'result',succeed)
 
@@ -64,11 +67,11 @@ async def process_recieved_message(message_queue):
 
         succeed_db = False # see if user and password exists and match
         succeed = 'succeed' if succeed_db else 'unsuccessful'
+        if succeed:
+            online_users_id.add(user_id)
         
         return create_sending_message(user_id, params,'result',succeed)
         
-
-        return name, None
 
 async def main():
     
@@ -84,13 +87,9 @@ async def main():
         
         message, be_send = await process_recieved_message(message_queue)
 
-        if be_send:
-            
-            await sock.send_multipart([be_send.encode(),b"",message.encode()])
+        # if message[result] == succedd and was login: print name connected
+        await sock.send_multipart([be_send.encode(),b"",message.encode()])
 
-        else:
-            
-            print(f'{message} connected.')
 
 
 if __name__ == '__main__':
