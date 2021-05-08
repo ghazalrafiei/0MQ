@@ -22,19 +22,26 @@ using json = nlohmann::json;
 std::vector<json> bridge;
 std::mutex mute;
 
-void client_tasks(std::string client_name)
-{
+zmq::socket_t handle_connection(std::string address){
+
     zmq::context_t context(1);
     zmq::socket_t client(context, ZMQ_DEALER);
 
     srandom((unsigned)time(NULL));
-#if (defined(WIN32))
-    s_set_id(client, (intptr_t)args);
-#else
-    s_set_id(client); //Set a printable identity
-#endif
 
-    client.connect("tcp://localhost:5672");
+    #if (defined(WIN32))
+    s_set_id(client, (intptr_t)args);
+    #else
+    s_set_id(client); // Set a printable identity
+    #endif
+
+    client.connect(address);
+
+    return client;
+
+}
+void send_and_recieve(std::string client_name){
+
 
     json login_json;
     login_json["method"] = "login";
@@ -85,7 +92,7 @@ void client_tasks(std::string client_name)
 }
 void run(std::string my_name)
 {
-    std::cout << "Who do you want to chat with?" << std::endl;
+    std::cout << "Who to chat with?" << std::endl;
     std::string rcvr_name;
     std::cin >> rcvr_name;
     std::cin.ignore();
@@ -112,16 +119,62 @@ void run(std::string my_name)
     }
 }
 
-int main()
-{
-    std::cout << "Your name is: " << std::endl;
-    std::string client_name;
-    std::cin >> client_name;
-    std::cin.ignore();
-    std::thread with_server(client_tasks, client_name);
+int main(){
+
+  client_socket = handle_connection("tcp://localhost:5672");
+
+
+  unsigned short int command = -1;
+
+  std::string client_name;
+  std::string password;
+
+  while (command != 1 or command != 2) {
+    std::cout << "1- Login
+                \n2- Sign up"<< std::endl;
+
+    std::cin >> command;
+    if(command == 1 || command == 2){
+        if(command == 2) 
+            std::cout<<"Choose username: ";
+        else 
+            std::cout << "Username: ";
+        std::cin >> client_name;
+
+        if (command == 2)
+        std::cout << "Choose password: ";
+        else
+        std::cout << "Password: ";
+        std::cin >> password;
+        // password = hash(password)
+
+        std::cin.ignore();
+        
+        json signin_query;
+        signin_query["method"] = (command == 1 : "login" ? "signup");
+
+        json params;
+        params["username"] = client_name;
+        params["password"] = password;
+        signin_query["params"] = params;
+
+        s_recv(client_socket);
+        std::string result = s_recv(client);
+        json login_query_result = json::parse(result);
+
+        if( login_query_result["result"] != "succeed" ){
+            std::cout<<"Unsuccessful"<< (command == 1 : "login" ? "signup")<<". Try again.";
+            command = -1;
+        }
+    }
+    else
+        std::cout << "Try again." << std::endl;
+}
+   
+
+    std::thread with_server(send_and_recieve, client_name);
     std::thread with_user(run, client_name);
 
     with_server.join();
     with_user.join();
 }
-
