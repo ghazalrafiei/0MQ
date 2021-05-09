@@ -22,32 +22,21 @@ using json = nlohmann::json;
 std::vector<json> bridge;
 std::mutex mute;
 
-zmq::socket_t handle_connection(std::string address){
+// zmq::socket_t handle_connection(std::string address){
 
-    zmq::context_t context(1);
-    zmq::socket_t client(context, ZMQ_DEALER);
 
-    srandom((unsigned)time(NULL));
 
-    #if (defined(WIN32))
-    s_set_id(client, (intptr_t)args);
-    #else
-    s_set_id(client); // Set a printable identity
-    #endif
+//     return client;
 
-    client.connect(address);
-
-    return client;
-
-}
-void send_and_recieve(std::string client_name){
+// }
+void send_and_recieve(zmq::socket_t client,std::string client_name){
 
 
     json login_json;
     login_json["method"] = "login";
 
     json params;
-    params["name"] = client_name;
+    params["username"] = client_name;
 
     login_json["params"] = params;
 
@@ -121,8 +110,22 @@ void run(std::string my_name)
 
 int main(){
 
-  client_socket = handle_connection("tcp://localhost:5672");
+//   zmq::socket_t client_socket = handle_connection();
 
+  zmq::context_t context(1);
+  zmq::socket_t client_socket(context, ZMQ_DEALER);
+
+  srandom((unsigned)time(NULL));
+
+#if (defined(WIN32))
+  s_set_id(client, (intptr_t)args);
+#else
+  s_set_id(client_socket); // Set a printable identity
+#endif
+
+  client_socket.connect("tcp://localhost:5672");
+
+  std::cout<<"Connected"<<std::endl;
 
   unsigned short int command = -1;
 
@@ -130,8 +133,7 @@ int main(){
   std::string password;
 
   while (command != 1 or command != 2) {
-    std::cout << "1- Login
-                \n2- Sign up"<< std::endl;
+    std::cout << "1- Login\n2- Sign up"<< std::endl;
 
     std::cin >> command;
     if(command == 1 || command == 2){
@@ -151,7 +153,7 @@ int main(){
         std::cin.ignore();
         
         json signin_query;
-        signin_query["method"] = (command == 1 : "login" ? "signup");
+        signin_query["method"] = (command == 1 ? "login" : "signup");
 
         json params;
         params["username"] = client_name;
@@ -159,11 +161,11 @@ int main(){
         signin_query["params"] = params;
 
         s_recv(client_socket);
-        std::string result = s_recv(client);
+        std::string result = s_recv(client_socket);
         json login_query_result = json::parse(result);
 
         if( login_query_result["result"] != "succeed" ){
-            std::cout<<"Unsuccessful"<< (command == 1 : "login" ? "signup")<<". Try again.";
+            std::cout<<"Unsuccessful"<< (command == 1 ? "login" : "signup")<<". Try again.";
             command = -1;
         }
     }
@@ -172,7 +174,7 @@ int main(){
 }
    
 
-    std::thread with_server(send_and_recieve, client_name);
+    std::thread with_server(send_and_recieve, client_socket ,client_name);
     std::thread with_user(run, client_name);
 
     with_server.join();

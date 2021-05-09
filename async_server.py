@@ -42,7 +42,7 @@ async def process_recieved_message(message_queue):
     user_id = (message.strip('][').split(', ')[0])[2:-1]
     json_message = json.loads(message_)
 
-    method = json['method']
+    method = json_message['method']
 
     if method == 'send_message':
 
@@ -51,11 +51,11 @@ async def process_recieved_message(message_queue):
         return create_sending_message(user_id, params)
 
     elif method == 'signup':
+        global id_to_name
 
-        succeed_db = False # get from db if json_message['params']['username']
+        succeed_db = False if json_message['params']['username'] in id_to_name.values() else True
         succeed = 'succeed' if succeed_db else 'unsuccessful'
         if succeed_db :
-            global id_to_name
             id_to_name[user_id] = json_message['params']['username']
             online_users_id.add(user_id)
 
@@ -65,9 +65,10 @@ async def process_recieved_message(message_queue):
 
     elif method == 'login':
 
-        succeed_db = False # see if user and password exists and match
+        # succeed_db = False # see if user and password exists and match
+        succeed_db = True if json_message['params']['username'] in id_to_name.values() else False
         succeed = 'succeed' if succeed_db else 'unsuccessful'
-        if succeed:
+        if succeed_db:
             online_users_id.add(user_id)
         
         return create_sending_message(user_id, params,'result',succeed)
