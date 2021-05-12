@@ -51,7 +51,6 @@ async def process_recieved_message(message_queue):
         return create_sending_message(user_id, params)
 
     elif method == 'signup':
-        # print("log:", json_message)
         global id_to_name
 
         succeed = 'succeed' if json_message['params']['username'] not in id_to_name.values(
