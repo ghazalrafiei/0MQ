@@ -8,7 +8,7 @@ class message(Model):
     msg_content = columns.Text()
     msg_receiver = columns.Text()
     msg_sender = columns.Text(index = True)
-    msg_status = columns.Text()
+    msg_status = columns.Text() 
     msg_timestamp = columns.DateTime()
 
 class user(Model):
