@@ -1,4 +1,4 @@
 # Jikjik
-Sending message in Json format from one client to another using ZeroMQ dealer/router messaging pattern with zmq_poll. It also handles spontaneous login.
+Sending message between two clients using ZeroMQ[https://zeromq.org/] dealer/router messaging pattern with ```zmq_poll```. Python server and send/receive message in client are asynchronous.
 
-Python server is written with ```asyncio``` but cpp server is syncronous.
+All data such as login and sign up logs, messages and users info are stored in CassandraDB[https://cassandra.apache.org/].

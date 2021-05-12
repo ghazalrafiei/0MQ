@@ -14,8 +14,8 @@
 #include <thread>
 #include <mutex>
 
-#include "zhelpers.hpp"
-#include "json.hpp"
+#include "helpers/zhelpers.hpp"
+#include "helpers/json.hpp"
 
 using json = nlohmann::json;
 
@@ -29,7 +29,7 @@ std::mutex mute;
 //     return client;
 
 // }
-void run(std::string my_name) {
+void user_communicator(std::string my_name) {
 
   std::cout << "Who to chat with?" << std::endl;
   std::string rcvr_name;
@@ -55,6 +55,7 @@ void run(std::string my_name) {
     mute.unlock();
   }
 }
+
 void chat(std::unique_ptr<zmq::socket_t>& client){
 
   client = std::move(client);
@@ -152,7 +153,7 @@ void login_signup_handle(std::unique_ptr<zmq::socket_t>& client){//separate thes
       
     }
 
-    std::thread with_user(run, client_name);
+    std::thread with_user(user_communicator, client_name);
     std::thread chat_handle(chat, std::ref(client));
 
     with_user.join();
@@ -178,8 +179,10 @@ int main(){
 
   std::cout<<"Connected"<<std::endl;
 
-std::thread with_server(login_signup_handle, std::ref(client_socket));
-with_server.join();
+  login_signup_handle(std::ref(client_socket))
+  //move
+  //chat //run
+// with_server.join();
 
 // with_user.join();
 }

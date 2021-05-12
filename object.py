@@ -1,12 +1,8 @@
-import uuid
-from cassandra.cqlengine import columns
-from cassandra.cqlengine import connection
 from datetime import datetime
-from cassandra.cqlengine.management import sync_table
+from cassandra.cqlengine import columns, connection
 from cassandra.cqlengine.models import Model
 
 class message(Model):
-
         
     msg_id = columns.Text(primary_key = True, default = 'Default')
     msg_content = columns.Text()
@@ -15,9 +11,13 @@ class message(Model):
     msg_status = columns.Text()
     msg_timestamp = columns.DateTime()
 
-class login_log(Model):
+class user(Model):
 
-    log_id = columns.Text(primary_key = True, default = 'Default')
+    user_name = columns.Text(index = True)
+    user_id = columns.Text(primary_key = True, default = 'Default')
+    user_signup_timestamp = columns.DateTime()
+
+class login_log(Mode):
+
+    user_id = columns.Text()
     login_timestamp = columns.DateTime()
-    login_user_id = columns.Text()
-    name = columns.Text(index = True)
