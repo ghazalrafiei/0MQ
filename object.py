@@ -16,7 +16,7 @@ class user(Model):
     user_name = columns.Text(index = True)
     user_id = columns.Text(primary_key = True, default = 'Default')
     user_signup_timestamp = columns.DateTime()
-    name_pass_hash = colummns.Text()
+    name_pass_hash = columns.Text()
 
 class login_log(Model):
 
