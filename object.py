@@ -17,7 +17,7 @@ class user(Model):
     user_id = columns.Text(primary_key = True, default = 'Default')
     user_signup_timestamp = columns.DateTime()
 
-class login_log(Mode):
-
+class login_log(Model):
+    login_id = columns.Integer(primary_key = True)
     user_id = columns.Text()
     login_timestamp = columns.DateTime()
