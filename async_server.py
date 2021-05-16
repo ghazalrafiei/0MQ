@@ -17,44 +17,58 @@ from cassandra.cqlengine.models import Model
 import object
 
 
-id_to_name = {}
-online_users_id = set()
+def id_to_name(user_id):
+    query_result = object.user.objects(user_id=user_id)
+
+    for instance in query_result:
+        return instance.user_name
+
+    return None
+
 
 def database_connect():
+
     connection.setup(['127.0.0.1'], 'jikjik_db', protocol_version=3)
+
     sync_table(object.login_log)
     sync_table(object.message)
     sync_table(object.user)
 
 
-def name_to_id(name):
+def name_to_id(username):
 
-    for i in id_to_name.keys():
-        if id_to_name[i] == name:
-            return i
+    query_result = object.user.objects(user_name=username)
 
+    for instance in query_result:
+        return instance.user_id
     return None
 
 
-def sign_up(params,user_id):
+def sign_up(username, user_id, password):
 
-    global id_to_name
-    succeed = 'succeed' if params['username'] not in id_to_name.values(
-        ) else 'unsuccessful'
+    query_result = object.user.objects(user_name=username)
+    username_count = query_result.count()
+    succeed = 'succeed' if username_count == 0 else 'unsuccessful'
+
     if succeed == 'succeed':
-        user_name = params['username']
-        id_to_name[user_id] = user_name
-        # online_users_id.add(user_id)
-        signedup_user = object.user.create(user_name = user_name, user_id = user_id, 
-                                            user_signup_timestamp = datetime.now(),
-                                            name_pass_hash ='hash:)')
-        logged_user = object.login_log.create(user_id=user_id,login_id=random.randint(1000, 2000).__str__(),
-                                                    login_timestamp=datetime.now())
+        signed_up_user = object.user.create(user_name=username, user_id=user_id,
+                                            user_signup_timestamp=datetime.now(),
+                                            name_pass_hash='hash:)?!')
+        logged_user = object.login_log.create(user_id=user_id, login_id=random.randint(1000, 2000).__str__(),
+                                              login_timestamp=datetime.now())
     return succeed
 
 
-def login():
-    pass
+def login(username, password):
+
+    succeed = 'succeed' if succeed_db else 'unsuccessful'
+    user_id = name_to_id(username)
+
+    if succeed == 'succeed':
+
+        logged_user = object.login_log.create(user_id=user_id, login_id=random.randint(1000, 2000).__str__(),
+                                              login_timestamp=datetime.now())
+
 
 def create_reply(user_id, params, method='receive_message', result=''):
 
@@ -68,7 +82,7 @@ def create_reply(user_id, params, method='receive_message', result=''):
     else:
         receiver_name = params['to']
         receiver_id = name_to_id(receiver_name)
-        params['from'] = id_to_name[user_id]
+        params['from'] = id_to_name(user_id)
         processed_msg['params'] = params
 
     return json.dumps(processed_msg), receiver_id
@@ -86,43 +100,31 @@ async def process_request(message_queue):
     params = json_message['params']
 
     if method == 'send_message':
-        
+
         ready_to_be_sent, receiver_id = create_reply(user_id, params)
-        
+
         sent_status = 'FAILED' if receiver_id is None else 'SUCCEED '
         ready_to_be_sent = None if receiver_id is None else ready_to_be_sent
 
-        message = object.message.create(msg_id = random.randint(3000,4000).__str__(),
-                                                msg_content = params['message'],
-                                                msg_receiver = params['to'],
-                                                msg_sender = params['from'],
-                                                msg_status = sent_status,
-                                                msg_timestamp = datetime.now())
+        message = object.message.create(msg_id=random.randint(3000, 4000).__str__(),
+                                        msg_content=params['message'],
+                                        msg_receiver=params['to'],
+                                        msg_sender=params['from'],
+                                        msg_status=sent_status,
+                                        msg_timestamp=datetime.now())
         return ready_to_be_sent, receiver_id
 
-        
     elif method == 'signup':
 
-        result = sign_up(params,user_id)
+        result = sign_up(params['username'], user_id, params['password'])
 
         return create_reply(user_id, params, 'result', result)
-       
-
 
     elif method == 'login':
 
-        # succeed_db = False # see if user and password exists and match
-        succeed_db = True if user_name in id_to_name.values(
-        ) else False
-        succeed = 'succeed' if succeed_db else 'unsuccessful'
-        # if succeed_db:
-        #     online_users_id.add(user_id)
-        if succeed == 'succeed':
-                                        
-            logged_user = object.login_log.create(user_id=user_id,login_id=random.randint(1000, 2000).__str__(),
-                                                  login_timestamp=datetime.now())
+        result = login(params['username'], params['password'])
 
-        return create_reply(user_id, params, 'result', succeed)
+        return create_reply(user_id, params, 'result', result)
 
 
 async def main():
@@ -145,7 +147,7 @@ async def main():
             await sock.send_multipart([be_send.encode(), b"", message.encode()])
 
         elif message is not None:
-            
+
             print(f'{message} connected.')
 
         elif be_send == None and message == None:
