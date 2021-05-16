@@ -17,22 +17,23 @@ from cassandra.cqlengine.models import Model
 import object
 
 
+def database_connect(nodes_address, keyspace):
+
+    connection.setup(nodes_address, keyspace, protocol_version=3)
+
+    sync_table(object.login_log)
+    sync_table(object.message)
+    sync_table(object.user)
+
+
 def id_to_name(user_id):
+
     query_result = object.user.objects(user_id=user_id)
 
     for instance in query_result:
         return instance.user_name
 
     return None
-
-
-def database_connect():
-
-    connection.setup(['127.0.0.1'], 'jikjik_db', protocol_version=3)
-
-    sync_table(object.login_log)
-    sync_table(object.message)
-    sync_table(object.user)
 
 
 def name_to_id(username):
@@ -131,7 +132,9 @@ async def main():
 
     ctx = zmq.asyncio.Context()
     sock = ctx.socket(zmq.ROUTER)
+    
     sock.bind('tcp://{}:{}'.format('*', 5672))
+
     print('Connected to socket.')
 
     message_queue = asyncio.Queue()
@@ -155,5 +158,5 @@ async def main():
 
 if __name__ == '__main__':
 
-    database_connect()
+    database_connect(['127.0.0.1', 'jikjik_db'])
     asyncio.run(main())
