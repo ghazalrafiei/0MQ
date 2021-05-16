@@ -57,7 +57,7 @@ async def process_recieved_message(message_queue):
     message = await message_queue.get()
     message_ = (message.strip('][').split(', ')[2])[2:-1]
     user_id = (message.strip('][').split(', ')[0])[2:-1]
-    
+
     json_message = json.loads(message_)
 
     method = json_message['method']
