@@ -42,6 +42,7 @@ def name_to_id(username):
 
     for instance in query_result:
         return instance.user_id
+    
     return None
 
 
@@ -158,5 +159,5 @@ async def main():
 
 if __name__ == '__main__':
 
-    database_connect(['127.0.0.1', 'jikjik_db'])
+    database_connect(['127.0.0.1'], 'jikjik_db')
     asyncio.run(main())
