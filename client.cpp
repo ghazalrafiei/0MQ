@@ -138,7 +138,7 @@ void login_signup_handle(std::unique_ptr<zmq::socket_t>& client){//separate thes
         json login_query_result = json::parse(result);
         
         if (login_query_result["params"]["result"] == "unsuccessful") {
-          std::cout << "Unsuccessful" << (command == 1 ? "login" : "signup")
+          std::cout << "Unsuccessful " << (command == 1 ? "login" : "signup")
                     << ". Try again."<<std::endl;
           command = -1;
         } else if (login_query_result["params"]["result"] == "succeed") {
