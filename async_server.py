@@ -4,17 +4,21 @@ from datetime import datetime
 import zmq
 import zmq.asyncio
 import asyncio
+from datetime import datetime
 
+import object
 import json
+import hmac
+import hashlib
 
 from cassandra.cluster import Cluster
 from cassandra.cqlengine import columns
 from cassandra.cqlengine import connection
-from datetime import datetime
 from cassandra.cqlengine.management import sync_table
-from cassandra.cqlengine.models import Model
 
-import object
+KEY = b'9fj3bx8rto8475ljdslkfu8787qa'
+
+_DEBUG_ = False
 
 
 def database_connect(nodes_address, keyspace):
@@ -25,6 +29,18 @@ def database_connect(nodes_address, keyspace):
     sync_table(object.message)
     sync_table(object.user)
 
+def user_pass_match(username, password):
+
+    new_hash = hmac.new(KEY, (username+password).encode(),hashlib.sha256).hexdigest()
+    
+    stored_hash = ''
+    for h in object.user.objects(user_name = username):
+        stored_hash = h.name_pass_hash
+        break
+
+    print(hmac.compare_digest(new_hash , stored_hash))
+
+    return hmac.compare_digest(new_hash , stored_hash)
 
 def id_to_name(user_id):
 
@@ -55,7 +71,7 @@ def sign_up(username, user_id, password):
     if succeed == 'succeed':
         signed_up_user = object.user.create(user_name=username, user_id=user_id,
                                             user_signup_timestamp=datetime.now(),
-                                            name_pass_hash='hash:)?!')
+                                            name_pass_hash=hmac.new(KEY,(username+password).encode(),hashlib.sha256).hexdigest())
         logged_user = object.login_log.create(user_id=user_id, login_id=random.randint(1000, 2000).__str__(),
                                               login_timestamp=datetime.now())
     return succeed
@@ -63,7 +79,7 @@ def sign_up(username, user_id, password):
 
 def login(username, password):
 
-    succeed = 'succeed' if succeed_db else 'unsuccessful'
+    succeed = 'succeed' if user_pass_match(username, password) else 'unsuccessful'
     user_id = name_to_id(username)
 
     if succeed == 'succeed':
@@ -142,12 +158,16 @@ async def main():
 
     while True:
         received_msg = await sock.recv_multipart()
+
+        if _DEBUG_:
+            print("received:", received_msg)
         message_queue.put_nowait(received_msg.__str__())
 
         message, be_send = await process_request(message_queue)
 
         if be_send is not None:
-
+            if _DEBUG_:
+                print("sent:",be_send)
             await sock.send_multipart([be_send.encode(), b"", message.encode()])
 
         elif message is not None:

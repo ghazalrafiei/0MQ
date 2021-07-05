@@ -17,18 +17,29 @@
 #include "helpers/zhelpers.hpp"
 #include "helpers/json.hpp"
 
+#include "helpers/cryptlite/base64.h"
+#include "helpers/cryptlite/hmac.h"
+#include "helpers/cryptlite/sha1.h"
+#include "helpers/cryptlite/sha256.h"
+
+// #define ENABLE_DEBUG
+
 using json = nlohmann::json;
 
+const std::string H_KEY = "9fj3bx8rto8475ljdslkfu8787qa";
 std::vector<json> bridge;
 std::mutex mute;
 
-// zmq::socket_t handle_connection(std::string address){
+std::string SHA256(std::string username, std::string password){
 
+  boost::uint8_t digest[32];
 
+  cryptlite::hmac<cryptlite::sha256>::calc(username+password, H_KEY, digest);
 
-//     return client;
+  std::string result = std::string((char*) digest);
+  return result;
+}
 
-// }
 void user_communicator(std::string my_name) {
 
   std::cout << "Who to chat with?" << std::endl;
@@ -61,13 +72,17 @@ void chat(std::unique_ptr<zmq::socket_t>& client){
   client = std::move(client);
   zmq::pollitem_t item[]{{*client, 0, ZMQ_POLLIN, 0}};
   while (1) {
-    // std::cout << "okay";
     int rc = zmq::poll(item, 1, 150);
     if (rc > 0) {
       if (item[0].revents & ZMQ_POLLIN) {
         s_recv(*client);
         std::string s = s_recv(*client);
         json j = json::parse(s);
+        
+        #ifdef ENABLE_DEBUG
+        std::clog<<j<<std::endl;
+        #endif
+        
         if (j["method"] == "receive_message") {
           std::string from = j["params"]["from"];
           std::string message = j["params"]["message"];
@@ -86,6 +101,9 @@ void chat(std::unique_ptr<zmq::socket_t>& client){
 
         s_sendmore(*client, "");
         s_send(*client, string_json_message);
+        #ifdef ENABLE_DEBUG
+          std::clog<<string_json_message<<std::endl;
+        #endif
       }
       mute.unlock();
     }
@@ -94,7 +112,6 @@ void chat(std::unique_ptr<zmq::socket_t>& client){
 
 void login_signup_handle(std::unique_ptr<zmq::socket_t>& client){//separate these
 
-
     client = std::move(client);
 
     unsigned short int command = -1;
@@ -102,7 +119,7 @@ void login_signup_handle(std::unique_ptr<zmq::socket_t>& client){//separate thes
     std::string client_name;
     std::string password;
 
-    while (!(command ==1 or command == 2)) {
+    while (!(command == 1 or command == 2)) {
       std::cout << "1- Login\n2- Sign up" << std::endl;
 
       std::cin >> command;
@@ -118,7 +135,6 @@ void login_signup_handle(std::unique_ptr<zmq::socket_t>& client){//separate thes
         else
           std::cout << "Password: ";
         std::cin >> password;
-        // password = hash(password)
 
         std::cin.ignore();
 
@@ -128,6 +144,7 @@ void login_signup_handle(std::unique_ptr<zmq::socket_t>& client){//separate thes
         json params;
         params["username"] = client_name;
         params["password"] = password;
+        params["code"] = "sldjf";
         signin_query["params"] = params;
 
         s_sendmore(*client,"");
@@ -141,9 +158,9 @@ void login_signup_handle(std::unique_ptr<zmq::socket_t>& client){//separate thes
           std::cout << "Unsuccessful " << (command == 1 ? "login" : "signup")
                     << ". Try again."<<std::endl;
           command = -1;
-        } else if (login_query_result["params"]["result"] == "succeed") {
+        } 
+        else if (login_query_result["params"]["result"] == "succeed") {
           std::cout << "successful " << (command == 1 ? "login." : "signup.")<<std::endl;
-          // break;
         }
       } 
       else if(command != 1 or command != 2){
@@ -163,8 +180,6 @@ void login_signup_handle(std::unique_ptr<zmq::socket_t>& client){//separate thes
 
 
 int main(){
-
-//   zmq::socket_t client_socket = handle_connection();
     
   zmq::context_t context(1);
   std::unique_ptr<zmq::socket_t> client_socket(new zmq::socket_t(context, ZMQ_DEALER));
@@ -179,10 +194,5 @@ int main(){
 
   std::cout<<"Connected"<<std::endl;
 
-  login_signup_handle(std::ref(client_socket))
-  //move
-  //chat //run
-// with_server.join();
-
-// with_user.join();
+  login_signup_handle(std::ref(client_socket));
 }
