@@ -30,19 +30,42 @@ const std::string H_KEY = "9fj3bx8rto8475ljdslkfu8787qa";
 std::vector<json> bridge;
 std::mutex mute;
 
-std::string SHA256(std::string username, std::string password){
-
-  std::string result =  cryptlite::hmac<cryptlite::sha256>::calc_hex(username+password, H_KEY);
-
-  // std::string result = "";
-  // for (int i = 0; i<32; i++){
-  //   char k = digest[i];
-  //   std::cout<<k<<std::endl;
-  //   result += k;
-  // }
-  return result;
+std::string sha256_encode(std::string str){
+  return cryptlite::hmac<cryptlite::sha256>::calc_hex(str, H_KEY);
 }
 
+std::string hmac_sha256(std::string username, std::string password){
+  return sha256_encode(username+password);
+}
+
+std::pair<std::string, std::string> get_user_pass() {
+
+  std::string username, password;
+
+  std::cout << "Username: ";
+  std::cin >> username;
+
+  std::cout << "Password: ";
+  std::cin >> password;
+
+  std::cin.ignore();
+
+  return std::pair<std::string, std::string>(username, password);
+}
+
+json prepare_json(std::string username, std::string password, std::string method){
+
+  json signin_query;
+  signin_query["method"] = method;
+
+  json params;
+  params["username"] = username;
+  params["password"] = password;
+  params["code"] = hmac_sha256(username, password);
+  signin_query["params"] = params;
+
+  return signin_query;
+}
 void user_communicator(std::string my_name) {
 
   std::cout << "Who to chat with?" << std::endl;
@@ -112,95 +135,80 @@ void chat(std::unique_ptr<zmq::socket_t>& client){
   }
 }
 
-std::pair<std::string, std::string> get_user_pass(){
-  
-  std::string client_name, password;
-  
-  std::cout << "Username: ";
-  std::cin >> client_name;
+bool start_connection(std::unique_ptr<zmq::socket_t>& client,std::string username, std::string password, std::string method){
 
-  std::cout << "Password: ";
-  std::cin >> password;
+  client = std::move(client);
 
-  std::cin.ignore();
-  
-  return std::pair<std::string, std::string> (client_name, password);
+  std::stringstream identity;
+  identity << "ID-" << sha256_encode(username).substr(0,10);
+  client->setsockopt(ZMQ_IDENTITY, identity.str().c_str(),
+                     identity.str().length());
+
+  client->connect("tcp://localhost:5672");
+  std::cout<<"Connected"<<std::endl;
+
+  json json_ready = prepare_json(username, password, method);
+
+  s_sendmore(*client, "");
+  s_send(*client, json_ready.dump());
+
+  s_recv(*client);
+  std::string result = json::parse(s_recv(*client))["params"]["result"];
+
+  if (result == "succeed")
+    return true;
+  else if (result == "Unseccessful")
+    return false;
+
+  return false;
+
 }
 
-void login_signup_handle(){//separate these
+void run(){
+  zmq::context_t context(1);
+  std::unique_ptr<zmq::socket_t> client(new zmq::socket_t(context, ZMQ_DEALER));
 
-    // client = std::move(client);
-    zmq::context_t context(1);
-    std::unique_ptr<zmq::socket_t> client(new zmq::socket_t(context, ZMQ_DEALER));
+  unsigned short int command = -1;
 
-    srandom((unsigned)time(NULL));
+  std::string username, password;
+  while (!(command == 1 or command == 2)) {
+    std::cout << "1- Login\n2- Sign up" << std::endl;
 
-    std::stringstream identity;
-    identity << "ID-" << rand() % 1000 + 1000;
-    client->setsockopt(ZMQ_IDENTITY, identity.str().c_str(),
-                              identity.str().length());
+    std::cin >> command;
+    if (command == 1 || command == 2) {
 
-    client->connect("tcp://localhost:5672");
+      std::pair<std::string, std::string> user_pass = get_user_pass();
 
-    std::cout << "Connected" << std::endl;
+      username = user_pass.first;
+      password = user_pass.second;
 
-    unsigned short int command = -1;
-
-    std::string client_name, password;
-    while (!(command == 1 or command == 2)) {
-      std::cout << "1- Login\n2- Sign up" << std::endl;
-
-      std::cin >> command;
-      if (command == 1 || command == 2) {
-
-        std::pair<std::string, std::string> user_pass = get_user_pass();
-
-        client_name = user_pass.first;
-        password = user_pass.second;
-
-        json signin_query;
-        signin_query["method"] = (command == 1 ? "login" : "signup");
-        
-        json params;
-        params["username"] = client_name;
-        params["password"] = password;
-        params["code"] = SHA256(client_name, password);
-        signin_query["params"] = params;
-
-        s_sendmore(*client,"");
-        s_send(*client,signin_query.dump());
-
-        s_recv(*client);
-        std::string result = s_recv(*client);
-        json login_query_result = json::parse(result);
-        
-        if (login_query_result["params"]["result"] == "unsuccessful") {
-          std::cout << "Unsuccessful " << (command == 1 ? "login" : "signup")
-                    << ". Try again."<<std::endl;
-          command = -1;
-        } 
-        else if (login_query_result["params"]["result"] == "succeed") {
-          std::cout << "successful " << (command == 1 ? "login." : "signup.")<<std::endl;
-        }
-      } 
-      else if(command != 1 or command != 2){
-        std::cout << "Try again." << std::endl;
-
+      std::string method = (command == 1 ? "login" : "signup");
+      bool connection_succeed =
+          start_connection(std::ref(client), username, password, method);
+      if(connection_succeed){
+        std::cout << "successful " << method << std::endl;
       }
-    }
 
-    std::thread with_user(user_communicator, client_name);
+      else{
+
+        std::cout << "Unsuccessful " << method << ". Try again." << std::endl;
+        command = -1;
+      }
+
+    } 
+    else if (command != 1 or command != 2) {
+      std::cout << "Try again." << std::endl;
+    }
+  }
+
+    std::thread with_user(user_communicator, username);
     std::thread chat_handle(chat, std::ref(client));
 
     with_user.join();
     chat_handle.join();
-    
 }
 
 
 int main(){
-    
- 
-
-  login_signup_handle();
+  run();
 }

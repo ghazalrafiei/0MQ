@@ -18,7 +18,7 @@ from cassandra.cqlengine.management import sync_table
 
 KEY = b'9fj3bx8rto8475ljdslkfu8787qa'
 
-_DEBUG_ = False
+_DEBUG_ = True
 
 
 def database_connect(nodes_address, keyspace):
@@ -37,8 +37,6 @@ def user_pass_match(username, password):
     for h in object.user.objects(user_name = username):
         stored_hash = h.name_pass_hash
         break
-
-    print(hmac.compare_digest(new_hash , stored_hash))
 
     return hmac.compare_digest(new_hash , stored_hash)
 
