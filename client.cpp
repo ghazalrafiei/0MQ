@@ -32,11 +32,14 @@ std::mutex mute;
 
 std::string SHA256(std::string username, std::string password){
 
-  boost::uint8_t digest[32];
+  std::string result =  cryptlite::hmac<cryptlite::sha256>::calc_hex(username+password, H_KEY);
 
-  cryptlite::hmac<cryptlite::sha256>::calc(username+password, H_KEY, digest);
-
-  std::string result = std::string((char*) digest);
+  // std::string result = "";
+  // for (int i = 0; i<32; i++){
+  //   char k = digest[i];
+  //   std::cout<<k<<std::endl;
+  //   result += k;
+  // }
   return result;
 }
 
@@ -86,8 +89,7 @@ void chat(std::unique_ptr<zmq::socket_t>& client){
         if (j["method"] == "receive_message") {
           std::string from = j["params"]["from"];
           std::string message = j["params"]["message"];
-          std::cout << "*New Message from " << from << ": " << message
-                    << std::endl;
+          std::cout << "*New Message from " << from << ": " << message << std::endl;
         }
       }
     }
@@ -110,33 +112,51 @@ void chat(std::unique_ptr<zmq::socket_t>& client){
   }
 }
 
-void login_signup_handle(std::unique_ptr<zmq::socket_t>& client){//separate these
+std::pair<std::string, std::string> get_user_pass(){
+  
+  std::string client_name, password;
+  
+  std::cout << "Username: ";
+  std::cin >> client_name;
 
-    client = std::move(client);
+  std::cout << "Password: ";
+  std::cin >> password;
+
+  std::cin.ignore();
+  
+  return std::pair<std::string, std::string> (client_name, password);
+}
+
+void login_signup_handle(){//separate these
+
+    // client = std::move(client);
+    zmq::context_t context(1);
+    std::unique_ptr<zmq::socket_t> client(new zmq::socket_t(context, ZMQ_DEALER));
+
+    srandom((unsigned)time(NULL));
+
+    std::stringstream identity;
+    identity << "ID-" << rand() % 1000 + 1000;
+    client->setsockopt(ZMQ_IDENTITY, identity.str().c_str(),
+                              identity.str().length());
+
+    client->connect("tcp://localhost:5672");
+
+    std::cout << "Connected" << std::endl;
 
     unsigned short int command = -1;
 
-    std::string client_name;
-    std::string password;
-
+    std::string client_name, password;
     while (!(command == 1 or command == 2)) {
       std::cout << "1- Login\n2- Sign up" << std::endl;
 
       std::cin >> command;
       if (command == 1 || command == 2) {
-        if (command == 2)
-          std::cout << "Choose username: ";
-        else
-          std::cout << "Username: ";
-        std::cin >> client_name;
 
-        if (command == 2)
-          std::cout << "Choose password: ";
-        else
-          std::cout << "Password: ";
-        std::cin >> password;
+        std::pair<std::string, std::string> user_pass = get_user_pass();
 
-        std::cin.ignore();
+        client_name = user_pass.first;
+        password = user_pass.second;
 
         json signin_query;
         signin_query["method"] = (command == 1 ? "login" : "signup");
@@ -144,7 +164,7 @@ void login_signup_handle(std::unique_ptr<zmq::socket_t>& client){//separate thes
         json params;
         params["username"] = client_name;
         params["password"] = password;
-        params["code"] = "sldjf";
+        params["code"] = SHA256(client_name, password);
         signin_query["params"] = params;
 
         s_sendmore(*client,"");
@@ -167,7 +187,6 @@ void login_signup_handle(std::unique_ptr<zmq::socket_t>& client){//separate thes
         std::cout << "Try again." << std::endl;
 
       }
-      
     }
 
     std::thread with_user(user_communicator, client_name);
@@ -181,18 +200,7 @@ void login_signup_handle(std::unique_ptr<zmq::socket_t>& client){//separate thes
 
 int main(){
     
-  zmq::context_t context(1);
-  std::unique_ptr<zmq::socket_t> client_socket(new zmq::socket_t(context, ZMQ_DEALER));
+ 
 
-  srandom((unsigned)time(NULL));
-
-  std::stringstream identity;
-  identity<<  "ID-" << rand()%1000+1000;
-  client_socket->setsockopt(ZMQ_IDENTITY, identity.str().c_str(), identity.str().length());
-
-  client_socket->connect("tcp://localhost:5672");
-
-  std::cout<<"Connected"<<std::endl;
-
-  login_signup_handle(std::ref(client_socket));
+  login_signup_handle();
 }
