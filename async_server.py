@@ -87,9 +87,9 @@ def login(username, password):
 
 
 def create_reply(user_id, params, method='receive_message', result=''):
-
-    processed_msg = {'method': method}
-
+    
+    processed_msg = {}
+    
     if method == 'result':
         processed_msg['method'] = method
         processed_msg['params'] = {'result': result}
@@ -98,7 +98,17 @@ def create_reply(user_id, params, method='receive_message', result=''):
     else:
         receiver_name = params['to']
         receiver_id = name_to_id(receiver_name)
-        params['from'] = id_to_name(user_id)
+
+        if receiver_id is not None:
+            params['from'] = id_to_name(user_id)
+        
+        else:
+            params['from'] = 'Server'
+            receiver_id = user_id
+            processed_msg['method'] = 'error'
+            params['emessage'] = 'User doesn\'t exists'
+            params['message'] = ''
+
         processed_msg['params'] = params
 
     return json.dumps(processed_msg), receiver_id
@@ -119,8 +129,14 @@ async def process_request(message_queue):
 
         ready_to_be_sent, receiver_id = create_reply(user_id, params)
 
-        sent_status = 'FAILED' if receiver_id is None else 'SUCCEED '
-        ready_to_be_sent = None if receiver_id is None else ready_to_be_sent
+        sent_status = ''
+        if receiver_id != user_id:
+            sent_status = 'SUCCEED '
+        
+        else: #Sends back the error
+            sent_status = 'Failed'
+            # ready_to_be_sent = 'User doesn\'t exists'
+        
 
         message = object.message.create(msg_id=random.randint(3000, 4000).__str__(),
                                         msg_content=params['message'],
@@ -128,6 +144,8 @@ async def process_request(message_queue):
                                         msg_sender=params['from'],
                                         msg_status=sent_status,
                                         msg_timestamp=datetime.now())
+        # ready_to_be_sent['']
+
         return ready_to_be_sent, receiver_id
 
     elif method == 'signup':
@@ -161,19 +179,17 @@ async def main():
             print("received:", received_msg)
         message_queue.put_nowait(received_msg.__str__())
 
-        message, be_send = await process_request(message_queue)
+        message, be_sent = await process_request(message_queue)
 
-        if be_send is not None:
+        if be_sent is not None:
             if _DEBUG_:
-                print("sent:",be_send)
-            await sock.send_multipart([be_send.encode(), b"", message.encode()])
+                print("sent:",be_sent)
+            await sock.send_multipart([be_sent.encode(), b"", message.encode()])
 
         elif message is not None:
-
+            
             print(f'{message} connected.')
 
-        elif be_send == None and message == None:
-            print("contact does not exists")
 
 if __name__ == '__main__':
 

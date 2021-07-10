@@ -110,9 +110,14 @@ void chat(std::unique_ptr<zmq::socket_t>& client){
         #endif
         
         if (j["method"] == "receive_message") {
-          std::string from = j["params"]["from"];
-          std::string message = j["params"]["message"];
-          std::cout << "*New Message from " << from << ": " << message << std::endl;
+
+          std::cout << "*New Message from " 
+                    << j["params"]["from"] << ": "
+                    << j["params"]["message"] << std::endl;
+        }
+
+        else if(j["method"] == "error"){
+          std::cout<<"Error: "<<j["params"]["emessage"]<<std::endl;
         }
       }
     }
@@ -157,6 +162,7 @@ bool start_connection(std::unique_ptr<zmq::socket_t>& client,std::string usernam
 
   if (result == "succeed")
     return true;
+
   else if (result == "Unseccessful")
     return false;
 
@@ -171,6 +177,7 @@ void run(){
   unsigned short int command = -1;
 
   std::string username, password;
+  
   while (!(command == 1 or command == 2)) {
     std::cout << "1- Login\n2- Sign up" << std::endl;
 
@@ -188,9 +195,7 @@ void run(){
       if(connection_succeed){
         std::cout << "successful " << method << std::endl;
       }
-
       else{
-
         std::cout << "Unsuccessful " << method << ". Try again." << std::endl;
         command = -1;
       }
