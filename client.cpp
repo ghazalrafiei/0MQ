@@ -174,22 +174,22 @@ void run(){
   zmq::context_t context(1);
   std::unique_ptr<zmq::socket_t> client(new zmq::socket_t(context, ZMQ_DEALER));
 
-  unsigned short int command = -1;
+  char command = '0';
 
   std::string username, password;
   
-  while (!(command == 1 or command == 2)) {
+  while (!(command == '1' or command == '2')) {
     std::cout << "1- Login\n2- Sign up" << std::endl;
 
     std::cin >> command;
-    if (command == 1 || command == 2) {
+    if (command == '1' || command == '2') {
 
       std::pair<std::string, std::string> user_pass = get_user_pass();
 
       username = user_pass.first;
       password = user_pass.second;
 
-      std::string method = (command == 1 ? "login" : "signup");
+      std::string method = (command == '2' ? "login" : "signup");
       bool connection_succeed =
           start_connection(std::ref(client), username, password, method);
       if(connection_succeed){
@@ -197,11 +197,11 @@ void run(){
       }
       else{
         std::cout << "Unsuccessful " << method << ". Try again." << std::endl;
-        command = -1;
+        command = '0';
       }
 
     } 
-    else if (command != 1 or command != 2) {
+    else{
       std::cout << "Try again." << std::endl;
     }
   }
