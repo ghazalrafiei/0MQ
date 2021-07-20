@@ -66,6 +66,7 @@ json prepare_json(std::string username, std::string password, std::string method
 
   return signin_query;
 }
+
 void user_communicator(std::string my_name) {
 
   std::cout << "Who to chat with?" << std::endl;
@@ -79,7 +80,7 @@ void user_communicator(std::string my_name) {
     std::getline(std::cin, msg);
 
     json json_message;
-    json_message["method"] = "send_message";
+    json_message["method"] = "new_message";
 
     json params;
     params["to"] = rcvr_name;
@@ -96,20 +97,23 @@ void user_communicator(std::string my_name) {
 void chat(std::unique_ptr<zmq::socket_t>& client){
 
   client = std::move(client);
+
   zmq::pollitem_t item[]{{*client, 0, ZMQ_POLLIN, 0}};
+
   while (1) {
     int rc = zmq::poll(item, 1, 150);
     if (rc > 0) {
       if (item[0].revents & ZMQ_POLLIN) {
         s_recv(*client);
         std::string s = s_recv(*client);
+        
         json j = json::parse(s);
         
         #ifdef ENABLE_DEBUG
         std::clog<<j<<std::endl;
         #endif
-        
-        if (j["method"] == "receive_message") {
+
+        if (j["method"] == "new_message") {
 
           std::cout << "*New Message from " 
                     << j["params"]["from"] << ": "
@@ -158,12 +162,14 @@ bool start_connection(std::unique_ptr<zmq::socket_t>& client,std::string usernam
   s_send(*client, json_ready.dump());
 
   s_recv(*client);
-  std::string result = json::parse(s_recv(*client))["params"]["result"];
+  std::string new_message = s_recv(*client);
+  std::string result = json::parse(new_message)["params"]["result"];
+  std::cout<<"reult = "<<result<<std::endl;
 
-  if (result == "succeed")
+  if (result == "SUCCEED")
     return true;
 
-  else if (result == "Unseccessful")
+  else if (result == "FAILED")
     return false;
 
   return false;
@@ -189,7 +195,7 @@ void run(){
       username = user_pass.first;
       password = user_pass.second;
 
-      std::string method = (command == '2' ? "login" : "signup");
+      std::string method = (command == '1' ? "login" : "signup");
       bool connection_succeed =
           start_connection(std::ref(client), username, password, method);
       if(connection_succeed){
@@ -212,7 +218,6 @@ void run(){
     with_user.join();
     chat_handle.join();
 }
-
 
 int main(){
   run();

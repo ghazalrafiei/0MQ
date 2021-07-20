@@ -4,9 +4,8 @@ from datetime import datetime
 import zmq
 import zmq.asyncio
 import asyncio
-from datetime import datetime
 
-import object
+import object.object as object
 import json
 import argparse
 import hmac
@@ -22,15 +21,17 @@ dbms = None
 
 
 def args_parse():
-    debug_parser = argparse.ArgumentParser(description='If debug or not')
-    debug_parser.add_argument('-d', '--debug', help='To log input and output')
-    debug_parser.add_argument(
-        '-c', '--cassandra', help='To store data in Cassandra DB')
-    debug_parser.add_argument('-m', '--mongo', help='To store data in MongoDB')
+    
+    global _DEBUG_
+    debug_parser = argparse.ArgumentParser()
+    debug_parser.add_argument('-d', '--debug', help='To log input and output',action='store_true')
+    debug_parser.add_argument('-c', '--cassandra', help='To store data in Cassandra DB',action='store_true')
+    debug_parser.add_argument('-m', '--mongo', help='To store data in MongoDB',action='store_true')
 
     args = debug_parser.parse_args()
 
     if args.debug:
+        print('Warning: Debug mode is on.')
         _DEBUG_ = True
 
     if args.mongo:
@@ -74,32 +75,32 @@ def sign_up(username, user_id, password):
 
     query_result = object.user.objects(user_name=username)
     username_count = query_result.count()
-    succeed = 'succeed' if username_count == 0 else 'unsuccessful'
+    succeed = 'SUCCEED' if username_count == 0 else 'FAILED'
 
-    if succeed == 'succeed':
+    if succeed == 'SUCCEED':
         dbms.store_user(username, user_id, datetime.now(),
                         hmac.new(KEY, (username+password).encode(), hashlib.sha256).hexdigest())
 
         dbms.store_login_log(user_id, random.randint(
-            1000, 2000).__str__(), datetime.now())
+            2000, 3000).__str__(), datetime.now())
 
     return succeed
 
 
 def login(username, password):
 
-    succeed = 'succeed' if user_pass_match(
-        username, password) else 'unsuccessful'
+    succeed = 'SUCCEED' if user_pass_match(
+        username, password) else 'FAILED'
     user_id = name_to_id(username)
 
-    if succeed == 'succeed':
+    if succeed == 'SUCCEED':
 
-        dbms.store_login_log(user_id=user_id, login_id=random.randint(1000, 2000).__str__(),
+        dbms.store_login_log(user_id=user_id, login_id=random.randint(2000, 3000).__str__(),
                              login_timestamp=datetime.now())
-    return
+    return succeed
 
 
-def create_reply(user_id, params, method='receive_message', result=''):
+def create_reply(user_id, params, method='new_message', result = ''):
 
     processed_msg = {}
 
@@ -109,6 +110,7 @@ def create_reply(user_id, params, method='receive_message', result=''):
         receiver_id = user_id
 
     else:
+        processed_msg['method'] = method
         receiver_name = params['to']
         receiver_id = name_to_id(receiver_name)
 
@@ -138,16 +140,17 @@ async def process_request(message_queue):
     method = json_message['method']
     params = json_message['params']
 
-    if method == 'send_message':
+    if method =='new_message':
 
         ready_to_be_sent, receiver_id = create_reply(user_id, params)
-
         sent_status = ''
+
         if receiver_id != user_id:
-            sent_status = 'SUCCEED '
+            sent_status = 'SUCCEED'
 
         else:  # Sends back the error
-            sent_status = 'Failed'
+            sent_status = 'FAILED'
+
 
         dbms.store_message(random.randint(3000, 4000).__str__(),
                            params['message'],
@@ -188,14 +191,14 @@ async def main():
             print("received:", received_msg)
 
         message_queue.put_nowait(received_msg.__str__())
-        message, be_sent = await process_request(message_queue)
+        message, receiver = await process_request(message_queue)
 
-        if be_sent is not None:
+        if receiver is not None:
 
-            if _DEBUG_:
-                print("sent:", be_sent)
+            await sock.send_multipart([receiver.encode(), b"", message.encode()])
 
-            await sock.send_multipart([be_sent.encode(), b"", message.encode()])
+            if _DEBUG_ == True:
+                print("sent:", [receiver.encode(), b"", message.encode()])
 
         elif message is not None:
 
